@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 const int relayPin = 10;
 const int water_fall_time = 2000;
 
@@ -43,7 +45,6 @@ void loop() {
       break;
     case WATERING:
       if(millis() - startTime >= water_fall_time){
-        relay_flag = false;
         digitalWrite(relayPin, LOW);
         Serial.println("Watering complete");
       }
