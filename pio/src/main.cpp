@@ -32,14 +32,21 @@ void loop() {
         if (c == '\n' || c == '\r') {
           cmd.trim();
           if(cmd == "relay_on"){
-            Serial.println("Command received: relay on");
+            Serial.print("Command received:");
+            Serial.println(cmd);
             digitalWrite(relayPin, HIGH);
           }else if(cmd == "relay_off"){
-            Serial.println("Command received: relay off");
+            Serial.print("Command received:");
+            Serial.println(cmd);
             digitalWrite(relayPin, LOW);
           }else if(cmd == "motor1_on") {
-            Serial.println("Command received: motor on");
+            Serial.print("Command received:");
+            Serial.println(cmd);
             digitalWrite(motor1Pin,HIGH);
+          }else if (cmd == "all_motor_off"){
+            Serial.print("Command received:");
+            Serial.println(cmd);
+            digitalWrite(motor1Pin,LOW);
           }else{
             Serial.println("Unknown command received");
           }
