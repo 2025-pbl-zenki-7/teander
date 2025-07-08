@@ -50,7 +50,7 @@ void controlMotor(int motorIndex, int sideIndex, bool motor_flag){
   if(motorIndex < 0 || motorIndex > num_motors) return;
   if(sideIndex < 0 || sideIndex > 1) return;
   if(motorPins[motorIndex][sideIndex] == -1) return;
-  digitalWrite(motorPins[motorIndex][sideIndex], motor_flag ? HIGH:LOW);
+  digitalWrite(motorPins[motorIndex][sideIndex], motor_flag ? HIGH : LOW);
 }
 
 /*
