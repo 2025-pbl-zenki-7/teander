@@ -1,5 +1,7 @@
 #include <Arduino.h>
 
+//#define DEBUG
+
 enum State {
   INIT,
   WAIT_CMD
@@ -15,14 +17,14 @@ enum MotorIndex{
   num_motors
 };
 
-const int relayPin = 10;
+const int relayPin = 13;
 
 const int motorPins[num_motors][2] = {
-  {11,-1},  //motor1
-  {12,-1},  //motor2
-  {13,-1},  //motor3
-  {6,7},    //motor4A/B
-  {8,9}     //motor5A/B
+  {6,-1},  //motor1
+  {7,-1},  //motor2
+  {8,-1},  //motor3
+  {9,10},  //motor4A/B
+  {11,12}  //motor5A/B
 };
 
 String cmd = "";
@@ -96,7 +98,11 @@ void processCommand(String command){
     bool turnOn = command.endsWith(":on");
     bool turnOff = command.endsWith(":off");
 
+
     if (turnOn || turnOff) {
+      #ifdef DEBUG
+        Serial.println(turnOn || turnOff);
+      #endif
       controlMotor(motorNum, sideIndex, turnOn);
     } else {
       Serial.println("Invalid motor command.");
