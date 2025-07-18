@@ -1,6 +1,5 @@
 #include <Arduino.h>
-
-//#define DEBUG
+#include <Servo.h>
 
 enum State {
   INIT,
@@ -12,31 +11,44 @@ enum MotorIndex{
   motor1,
   motor2,
   motor3,
-  motor4,
-  motor5,
-  num_motors
+  num_motors  // motor4と5は除外
 };
 
 const int relayPin = 13;
 
-const int motorPins[num_motors][2] = {
-  {6,-1},  //motor1
-  {7,-1},  //motor2
-  {8,-1},  //motor3
-  {9,10},  //motor4A/B
-  {11,12}  //motor5A/B
+const int motorPins[num_motors] = {
+  6,  //motor1
+  7,  //motor2
+  8   //motor3
 };
+
+// サーボ関連
+Servo servo4;
+Servo servo5;
+const int servo4Pin = 9;
+const int servo5Pin = 10;
+
+unsigned long relayOffTime = 0;
+unsigned long motorOffTime = 0;
+unsigned long servo4OffTime = 0;
+unsigned long servo5OffTime = 0;
+
+const unsigned long relayActiveDuration = 2000;
+const unsigned long motorActiveDuration = 3000;
+const unsigned long servoActiveDuration = 5000;
 
 String cmd = "";
 
 void setup() {
-  pinMode(relayPin,OUTPUT);
-  for(int i = 0; i<num_motors; i++){
-    pinMode(motorPins[i][0],OUTPUT);
-    if(motorPins[i][1] != -1){
-      pinMode(motorPins[i][1],OUTPUT);
-    }
+  pinMode(relayPin, OUTPUT);
+  for(int i = 0; i < num_motors; i++) {
+    pinMode(motorPins[i], OUTPUT);
   }
+
+  // サーボ初期化
+  servo4.attach(servo4Pin);
+  servo5.attach(servo5Pin);
+
   Serial.begin(9600);
 }
 
@@ -44,88 +56,50 @@ void logCommand(const String& cmd){
   Serial.println("Command received:"+cmd);
 }
 
-void controlRelay(bool relay_flag){
-  digitalWrite(relayPin, relay_flag ? HIGH : LOW);
-}
-
-void controlMotor(int motorIndex, int sideIndex, bool motor_flag){
-  if(motorIndex < 0 || motorIndex > num_motors) return;
-  if(sideIndex < 0 || sideIndex > 1) return;
-  if(motorPins[motorIndex][sideIndex] == -1) return;
-  digitalWrite(motorPins[motorIndex][sideIndex], motor_flag ? HIGH : LOW);
-}
-
 /*
 対応コマンド
-relay:on
-relay:off
-motor1:on
-motor1:off
-motor2:on
-motor2:off
-motor3:on
-motor3:off
-motor4A:on
-motor4A:off
-motor4B:on
-motor4B:off
-motor5A:on
-motor5A:off
-motor5B:on
-motor5B:off
+watering
+motor1
+motor2
+motor3
+servo4
+servo5
 reset
 */
 void processCommand(String command){
   command.trim();
   logCommand(command);
 
-  if (command == "relay:on") {
-    controlRelay(true);
-  } else if (command == "relay:off") {
-    controlRelay(false);
+  if (command == "watering") {
+    digitalWrite(relayPin,HIGH);
+    relayOffTime = millis() + relayActiveDuration;
   } else if (command.startsWith("motor")) {
-    int motorNum = command.charAt(5) - '1';  // 6番目の文字を取得し数値を1減らす(motorIndexに対応)
-    if (motorNum < 0 || motorNum >= num_motors) {
-      Serial.println("Invalid motor number.");
-      return;
-    }
-
-    int sideIndex = 0;
-    if (command.length() >= 7 && (command.charAt(6) == 'A' || command.charAt(6) == 'B')) {
-      sideIndex = (command.charAt(6) == 'B') ? 1 : 0;
-    }
-
-    bool turnOn = command.endsWith(":on");
-    bool turnOff = command.endsWith(":off");
-
-
-    if (turnOn || turnOff) {
-      #ifdef DEBUG
-        Serial.println(turnOn || turnOff);
-      #endif
-      controlMotor(motorNum, sideIndex, turnOn);
-    } else {
-      Serial.println("Invalid motor command.");
-    }
-  } else if (command == "reset") {
+    int motorNum = command.charAt(5) - '1';
+    digitalWrite(motorPins[motorNum],HIGH);
+    motorOffTime = millis() + motorActiveDuration;
+  } else if (command == "servo4") {
+    servo4.write(180);  // 任意の動作角度
+    servo4OffTime = millis() + servoActiveDuration;
+  } else if (command == "servo5") {
+    servo5.write(90);
+    servo5OffTime = millis() + servoActiveDuration;
+  } else if (command == "reboot") {
     currentState = INIT;
   } else {
     Serial.println("Unknown command received.");
   }
 }
 
-
 void loop() {
-  switch(currentState){
+  switch(currentState) {
     case INIT:
       Serial.println("initialized!!");
-      digitalWrite(relayPin,LOW);
-      for(int i = 0; i<num_motors; i++){
-        digitalWrite(motorPins[i][0],LOW);
-        if(motorPins[i][1] != -1){
-          digitalWrite(motorPins[i][1],LOW);
-        }
+      digitalWrite(relayPin, LOW);
+      for(int i = 0; i < num_motors; i++) {
+        digitalWrite(motorPins[i], LOW);
       }
+      servo4.write(0);
+      servo5.write(0);
       cmd = "";
       currentState = WAIT_CMD;
       break;
@@ -142,6 +116,28 @@ void loop() {
           cmd += c;
         }
       }
+      // リレー自動オフ
+      if(relayOffTime > 0 && millis() >= relayOffTime) {
+        digitalWrite(relayPin,LOW);
+        relayOffTime = 0;
+      }
+      // モーター自動オフ
+      if(motorOffTime > 0 && millis() >= motorOffTime){
+        digitalWrite(motorPins[0], LOW);
+        digitalWrite(motorPins[1], LOW);
+        digitalWrite(motorPins[2], LOW);
+
+        motorOffTime = 0;
+      }
+      // サーボ自動オフ
+      if (servo4OffTime > 0 && millis() >= servo4OffTime) {
+        servo4.write(0);
+        servo4OffTime = 0;
+      }
+      if (servo5OffTime > 0 && millis() >= servo5OffTime) {
+        servo5.write(0);
+        servo5OffTime = 0;
+      }
       break;
 
     default:
@@ -149,6 +145,6 @@ void loop() {
       currentState = INIT;
       break;
   }
-  
-  delay(100);
+
+  delay(50);  // 応答性と負荷のバランス
 }
